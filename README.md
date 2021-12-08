@@ -4,7 +4,7 @@
 
 ## Development Goals/Progress
 
-- [ ] Creates local database 
+- [x] Creates local database 
 - [ ] Commands set up to create the necessary databases and calculate the values
 - [ ] Interfaces with discord
 - [ ] Discord commands set up
