@@ -2,9 +2,10 @@
 import database as db
 
 def main():
-    database = db.Database('Students') # name is hardcoded now for testing purposes
-    database.initDB()
-    database.printDB()
+    gradeBook = db.GradeBook('gradeBook')
+    db.createStudent(gradeBook, 'John Doe')
+    db.createStudent(gradeBook, 'Jane Doe')
+    gradeBook.printDB()
 
 if __name__ == '__main__':
     main()
