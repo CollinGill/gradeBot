@@ -1,11 +1,20 @@
 #! python
-import database as db
+import gradebook as gb
+import classbook as cb
+import student   as sb
+import commands as cmd
+
+# Central Databases
+gradeBook = gb.GradeBook('GradeBook')
+classBook = cb.ClassBook('ClassBook')
 
 def main():
-    gradeBook = db.GradeBook('gradeBook')
-    db.createStudent(gradeBook, 'John Doe')
-    db.createStudent(gradeBook, 'Jane Doe')
-    gradeBook.printDB()
+    # Students
+    johnDoe          = cmd.createStudent(gradeBook, 'John Doe')
+    janeDoe          = cmd.createStudent(gradeBook, 'Jane Doe')
+    aliceWatson      = cmd.createStudent(gradeBook, 'Alice Watson')
+    michaelHenderson = cmd.createStudent(gradeBook, 'Michael Henderson')
 
-if __name__ == '__main__':
-    main()
+# Commented out if you want to run in the interactive terminal
+# if __name__ == '__main__':
+#    main()

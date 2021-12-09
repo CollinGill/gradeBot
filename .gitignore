@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 # Database files
-
+clean.sh
 files/
