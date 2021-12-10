@@ -43,7 +43,7 @@ def initClass(classDB, className):
     assignmentNums = int(input("How many types of assignments are there? "))
     for i in range(assignmentNums):
         print(f"\nAssignment type {i+1}:")
-        assignmentType = input("What is the type of assignment? ")
+        assignmentType = input("What is the type of assignment? ").upper()
         percentOfGrade = float(input("What is the percent of the final grade is this type worth? (Enter like '50') "))
         dropAmount     = int(input("How many grades of this type can you drop? "))
         classDB.query(f"INSERT INTO {classDBName}(AssignmentType, PercentOfGrade, DropAmount) VALUES('{assignmentType}', {percentOfGrade}, {dropAmount})")

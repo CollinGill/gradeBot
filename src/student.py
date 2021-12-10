@@ -35,15 +35,17 @@ class StudentDB(db.Database):
                     FROM Gpa;")
         return self.cur.fetchall()
     
-    def getSemesterGrades(self, semesterNum):
+    def getSemesterGrades(self):
+        semesterNum = int(input('What semester would you like to check? '))
         self.query(f"SELECT Name, Grade\
                     FROM Semester\
                     WHERE SemesterNum = {semesterNum};")
         semesterList = self.cur.fetchall()
-        return semesterList if semesterList != [] else 'No grades for this semester...'
+        return semesterList if semesterList != [] else f'No grades for semester {semesterNum}...'
 
 
-    def addGrade(self, classDB, className):
+    def addGrade(self, classDB):
+        className = input('What class would you like to add? ')
         classDBName = ''.join(className.upper().split())
         tableName = self.name + classDBName
 
@@ -74,7 +76,8 @@ class StudentDB(db.Database):
         self.commit()
         print("All done... Thanks!")
 
-    def getClassReport(self, className, assignmentType=None):
+    def getClassReport(self, assignmentType=None):
+        className = input('What class would you like a report of? ')
         classDBName = ''.join(className.upper().split())
         tableName = self.name + classDBName
         
@@ -91,6 +94,28 @@ class StudentDB(db.Database):
                          FROM {tableName}\
                          WHERE AssignmentType = '{assignmentType.upper()}';")
             return self.cur.fetchall()
+
+    def removeAssignment(self):
+        className = input('What class would you like to delete from? ')
+        classDBName = ''.join(className.upper().split())
+        tableName = self.name + classDBName
+
+        if tableName not in self.tables:
+            print(f"ERROR: {classDBName} not in {self.name}'s class list...")
+            return
+
+        print("Here's a list of grades...")
+        self.query(f"SELECT AssignmentType, AssignmentName, Grade\
+                        FROM {tableName};")
+        pprint(self.cur.fetchall())
+
+        assignmentName = input("What's the name of the assignment you would like to remove? (Case sensitive) ")
+        self.query(f"DELETE\
+                     FROM {tableName}\
+                     WHERE AssignmentName = '{assignmentName}'")
+        
+        print("All done... Thanks!")
+
 
     def printDB(self):
         print(f"\t{self.name}:\n{self.tables}\n")
