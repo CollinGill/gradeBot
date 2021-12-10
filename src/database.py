@@ -4,13 +4,25 @@ import sqlite3
 class Database:
     def __init__(self, name):
         self.name = name
-        self.dbLocation = self.createDBFile(self.name) # unsure if needed
-        self.con = sqlite3.connect(self.dbLocation)
+        self._dbLocation = self._createDBFile(self.name) # unsure if needed
+        self.con = sqlite3.connect(self._dbLocation)
         self.cur = self.con.cursor()
         self.tables = []
-        self.initDatabase()
+        self._initDatabase()
+
+    #--Public Methods--#
+    def printDB(self):
+        print(self.tables)
+
+    def query(self, command):
+        self.cur.execute(command)
+
+    def commit(self):
+        self.con.commit()
+        self._updateTables()
     
-    def createDBFile(self, name):
+    #--Private Methods--#
+    def _createDBFile(self, name):
         cwd = os.getcwd()
         filesDir = cwd + '/files'
         databaseFile = filesDir + f'/{name}.db'        
@@ -24,8 +36,9 @@ class Database:
             open(databaseFile, 'w').close()
 
         return databaseFile
-    
-    def updateTables(self):
+
+    # Possibly obsolete?
+    def _updateTables(self):
         self.tables = []
         self.query("SELECT name\
                     FROM sqlite_schema\
@@ -34,16 +47,6 @@ class Database:
         for table in rawTables:
             self.tables.append(table[0])
          
-    def printDB(self):
-        print(self.tables)
-    
-    def initDatabase(self):
+    def _initDatabase(self):
         print("\nInitialized base class\n")
-        self.updateTables()
-
-    def query(self, command):
-        self.cur.execute(command)
-
-    def commit(self):
-        self.con.commit()
         self.updateTables()

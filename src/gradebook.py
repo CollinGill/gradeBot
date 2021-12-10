@@ -1,17 +1,7 @@
 import database as db
 
 class GradeBook(db.Database):
-    def initDatabase(self):
-        self.query("CREATE TABLE IF NOT EXISTS Students (uID INTEGER PRIMARY KEY AUTOINCREMENT,\
-                                                         Name TEXT NOT NULL,\
-                                                         CulmulativeGPA REAL DEFAULT 0);")
-
-        self.query("CREATE TABLE IF NOT EXISTS Classes (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
-                                                        Name TEXT NOT NULL,\
-                                                        Credits REAL DEFAULT 0)")
-
-        self.commit()
-
+    #--Public Methods--#
     def getStudents(self):
         self.query("SELECT *\
                     FROM Students;")
@@ -23,8 +13,21 @@ class GradeBook(db.Database):
 
     def getClasses(self):
         self.query("SELECT Name, Credits\
-                    FROM Classes;")
+                    FROM ClassList;")
         return self.cur.fetchall()
     
     def printDB(self):
         print(f"Students:\n{self.getStudents()}\n")
+
+    #--Private Methods--#
+    def _initDatabase(self):
+        self.query("CREATE TABLE IF NOT EXISTS Students (uID INTEGER PRIMARY KEY AUTOINCREMENT,\
+                                                         Name TEXT NOT NULL,\
+                                                         CulmulativeGPA REAL DEFAULT 0);")
+
+        # I believe this is unnecessary
+        self.query("CREATE TABLE IF NOT EXISTS ClassList (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
+                                                          Name TEXT NOT NULL,\
+                                                          Credits REAL DEFAULT 0)")
+
+        self.commit()
