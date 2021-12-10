@@ -14,7 +14,3 @@ def main():
     janeDoe          = cmd.createStudent(gradeBook, 'Jane Doe')
     aliceWatson      = cmd.createStudent(gradeBook, 'Alice Watson')
     michaelHenderson = cmd.createStudent(gradeBook, 'Michael Henderson')
-
-# Commented out if you want to run in the interactive terminal
-# if __name__ == '__main__':
-#    main()

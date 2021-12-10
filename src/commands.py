@@ -1,8 +1,5 @@
-import gradebook as gb
-import classbook as cb
 import student   as sb
-
-import pprint
+from pprint import pprint
 
 def createStudent(gradeBookDB, name):
     studentDBName = name.split()[0].lower() + name.split()[1]
@@ -55,3 +52,11 @@ def getClassStats(classDB, className):
     classDB.query(f"SELECT *\
                     FROM {classDBName};")
     return classDB.cur.fetchall()
+
+def calculateAssignmentAverage(studentDB, className, assignmentType):
+    classDBName = ''.join(className.upper().split())
+    tableName = studentDB.name + classDBName
+
+    studentDB.query(f"SELECT ROUND(AVG(Grade), 4)\
+                      FROM {tableName}\
+                      WHERE AssignmentType = '{assignmentType}';")

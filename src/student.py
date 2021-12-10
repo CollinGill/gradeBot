@@ -44,6 +44,26 @@ class StudentDB(db.Database):
         return semesterList if semesterList != [] else f'No grades for semester {semesterNum}...'
 
 
+
+    def getClassReport(self, assignmentType=None):
+        className = input('What class would you like a report of? ')
+        classDBName = ''.join(className.upper().split())
+        tableName = self.name + classDBName
+        
+        if tableName not in self.tables:
+            print(f"ERROR: {classDBName} not in {self.name}'s class list...")
+            return
+
+        if assignmentType == None:
+            self.query(f"SELECT AssignmentType, AssignmentName, Grade\
+                         FROM {tableName};")
+            return self.cur.fetchall()
+        else:
+            self.query(f"SELECT AssignmentType, AssignmentName, Grade\
+                         FROM {tableName}\
+                         WHERE AssignmentType = '{assignmentType.upper()}';")
+            return self.cur.fetchall()
+
     def addGrade(self, classDB):
         className = input('What class would you like to add? ')
         classDBName = ''.join(className.upper().split())
@@ -74,26 +94,10 @@ class StudentDB(db.Database):
                                                                                            '{assignmentName}',\
                                                                                             {grade});")
         self.commit()
+
+        cmd.calculateAssignmentAverage(self, className, assignmentType)
+
         print("All done... Thanks!")
-
-    def getClassReport(self, assignmentType=None):
-        className = input('What class would you like a report of? ')
-        classDBName = ''.join(className.upper().split())
-        tableName = self.name + classDBName
-        
-        if tableName not in self.tables:
-            print(f"ERROR: {classDBName} not in {self.name}'s class list...")
-            return
-
-        if assignmentType == None:
-            self.query(f"SELECT AssignmentType, AssignmentName, Grade\
-                         FROM {tableName};")
-            return self.cur.fetchall()
-        else:
-            self.query(f"SELECT AssignmentType, AssignmentName, Grade\
-                         FROM {tableName}\
-                         WHERE AssignmentType = '{assignmentType.upper()}';")
-            return self.cur.fetchall()
 
     def removeAssignment(self):
         className = input('What class would you like to delete from? ')
@@ -106,13 +110,14 @@ class StudentDB(db.Database):
 
         print("Here's a list of grades...")
         self.query(f"SELECT AssignmentType, AssignmentName, Grade\
-                        FROM {tableName};")
+                     FROM {tableName};")
         pprint(self.cur.fetchall())
 
         assignmentName = input("What's the name of the assignment you would like to remove? (Case sensitive) ")
         self.query(f"DELETE\
                      FROM {tableName}\
                      WHERE AssignmentName = '{assignmentName}'")
+        self.commit()
         
         print("All done... Thanks!")
 
