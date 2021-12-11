@@ -20,29 +20,44 @@ class StudentDB(db.Database):
     
     def createClass(self, gradeDB, classDB, className, credits, semesterNum):
         classDBName = ''.join(className.upper().split())
+        classCutoff = classDBName + 'Cutoff'
         tableName = self.name + classDBName
 
-        classDB.query(f"CREATE TABLE IF NOT EXISTS {classDBName} (aID INTEGER PRIMARY KEY AUTOINCREMENT,\
+        classDB.query(f"CREATE TABLE IF NOT EXISTS {classDBName} (aID            INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                                   AssignmentType TEXT NOT NULL,\
                                                                   PercentOfGrade REAL NOT NULL DEFAULT 0,\
-                                                                  DropAmount INTEGER NOT NULL DEFAULT 0);")
+                                                                  DropAmount     INTEGER NOT NULL DEFAULT 0);")
         classDB.commit()
+
+        classDB.query(f"CREATE TABLE IF NOT EXISTS {classCutoff} (gcID   INTEGER PRIMARY KEY AUTOINCREMENT,\
+                                                                  A      REAL NOT NULL DEFAULT 0,\
+                                                                  AMinus REAL NOT NULL DEFAULT 0,\
+                                                                  BPlus  REAL NOT NULL DEFAULT 0,\
+                                                                  B      REAL NOT NULL DEFAULT 0,\
+                                                                  BMinus REAL NOT NULL DEFAULT 0,\
+                                                                  CPlus  REAL NOT NULL DEFAULT 0,\
+                                                                  C      REAL NOT NULL DEFAULT 0,\
+                                                                  D      REAL NOT NULL DEFAULT 0,\
+                                                                  F      REAL NOT NULL DEFAULT 0);")
+
+        classDB.commit()
+        self.query(f"CREATE TABLE IF NOT EXISTS {tableName} (aID            INTEGER PRIMARY KEY AUTOINCREMENT,\
+                                                             AssignmentType TEXT NOT NULL,\
+                                                             PercentOfGrade INTEGER NOT NULL DEFAULT 0,\
+                                                             Grade          FLOAT NOT NULL DEFAULT 0);")
+        self.query(f"INSERT INTO ClassGrades(SemesterNum, ClassName, Credits) VALUES({semesterNum}, '{classDBName}', {credits});")
+        self.commit()
 
         if (classDBName, credits) in gradeDB.getClasses():
             print(f'NOTE: Class already in database...')
         else:
             gradeDB.query(f"INSERT INTO ClassList(Name, Credits) VALUES('{classDBName}', {credits});")
             gradeDB.commit()
-            classDB.initClass(className)
+            classDB.initClass(self, className)
 
-        self.query(f"CREATE TABLE IF NOT EXISTS {tableName} (aID INTEGER PRIMARY KEY AUTOINCREMENT,\
-                                                                  AssignmentType TEXT NOT NULL,\
-                                                                  AssignmentName TEXT NOT NULL,\
-                                                                  Grade FLOAT NOT NULL DEFAULT 0);")
-        self.query(f"INSERT INTO ClassGrades(SemesterNum, ClassName, Credits) VALUES({semesterNum}, '{classDBName}', {credits});")
-        self.commit()
 
-    def getClassReport(self, assignmentType=None):
+    # TODO: Check the logic of this method, it seems shaky 
+    def getClassAssignments(self, assignmentType=None):
         className   = input('What class would you like a report of? ')
         classDBName = ''.join(className.upper().split())
         tableName   = self.name + classDBName
@@ -54,12 +69,12 @@ class StudentDB(db.Database):
         if assignmentType == None:
             self.query(f"SELECT AssignmentType, AssignmentName, Grade\
                          FROM Assignments\
-                         WHERE ClassName = '{className}';")
+                         WHERE ClassName = '{classDBName}';")
             return self.cur.fetchall()
         else:
             self.query(f"SELECT AssignmentType, AssignmentName, Grade\
                          FROM {tableName}\
-                         WHERE ClassName = '{className}' AND AssignmentType = '{assignmentType.upper()}';")
+                         WHERE ClassName = '{classDBName}' AND AssignmentType = '{assignmentType.upper()}';")
             return self.cur.fetchall()
 
     def addGrade(self, classDB):
@@ -80,21 +95,21 @@ class StudentDB(db.Database):
         pprint(classStats)
 
         print("\nGrade Information:")
-        assignmentName = input("What is the name of the assignment? ")
-        assignmentType = input("What is the type of the assignment? ").upper()
-        grade          = input("What is the grade of the assignment? ") 
+        assignmentName = input("What is the name of the assignment? ").strip()
+        assignmentType = input("What is the type of the assignment? ").strip().upper()
+        grade          = float(input("What is the grade of the assignment? "))
 
-        if assignmentType.upper() not in classStats:
+        if assignmentType not in classStats:
             print(f"ERROR: {assignmentType} not in {classDBName}...")
             return
 
-        self.query(f"INSERT INTO Assignments (ClassName, AssignmentType, AssignmentName, Grade) VALUES('{className}',\
+        self.query(f"INSERT INTO Assignments (ClassName, AssignmentType, AssignmentName, Grade) VALUES('{classDBName}',\
                                                                                                        '{assignmentType}',\
                                                                                                        '{assignmentName}',\
                                                                                                        {grade});")
         self.commit()
 
-        self._calculateAssignmentAverage(className, assignmentType)
+        self._calculateAssignmentAverage(classDB, classDBName, assignmentType)
 
         print("All done... Thanks!")
 
@@ -132,15 +147,15 @@ class StudentDB(db.Database):
         self.query(f"CREATE TABLE IF NOT EXISTS ClassGrades (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                              SemesterNum INTEGER NOT NULL,\
                                                              ClassName TEXT NOT NULL,\
-                                                             Credits FLOAT NOT NULL DEFAULT 0,\
-                                                             CurrentGrade FLOAT NOT NULL DEFAULT 0,\
-                                                             FinalGrade FLOAT NOT NULL DEFAULT 0);")
+                                                             Credits REAL NOT NULL DEFAULT 0,\
+                                                             CurrentGrade REAL NOT NULL DEFAULT 0,\
+                                                             FinalGrade REAL NOT NULL DEFAULT 0);")
 
         self.query(f"CREATE TABLE IF NOT EXISTS Assignments (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                              ClassName TEXT NOT NULL,\
                                                              AssignmentType TEXT NOT NULL,\
                                                              AssignmentName TEXT NOT NULL,\
-                                                             Grade REAL NOT NULL DEFAULT 0);")
+                                                             Grade REAL NOT NULL DEFAULT -1);")
         self.commit()
 
     def _createDBFile(self, name):
@@ -158,12 +173,34 @@ class StudentDB(db.Database):
 
         return databaseFile
 
-    def _calculateAssignmentAverage(self, className, assignmentType):
-        classDBName = ''.join(className.upper().split())
+    def _calculateAssignmentAverage(self, classDB, classDBName, assignmentType):
         tableName = self.name + classDBName
+        assignmentType = assignmentType.upper() # Double check during debugging
 
-        self.query(f"SELECT ROUND(AVG(Grade), 4)\
+        self.query(f"SELECT COUNT(*)\
                      FROM Assignments\
-                     WHERE AssignmentType = '{assignmentType}';")
+                     WHERE ClassName = '{classDBName}' AND AssignmentType = '{assignmentType}';")
+        amountOfAssignments = self.cur.fetchall()[0][0]
 
-        print(self.cur.fetchall())
+        classDB.query(f"SELECT DropAmount\
+                        FROM {classDBName}\
+                        WHERE AssignmentType = '{assignmentType}';")
+
+        dropAmount = classDB.cur.fetchall()[0][0]
+        keepAmount = amountOfAssignments - dropAmount if amountOfAssignments - dropAmount > 0 else amountOfAssignments
+       
+        self.query(f"SELECT Grade\
+                     FROM Assignments\
+                     WHERE AssignmentType = '{assignmentType}' AND ClassName = '{classDBName}'\
+                     ORDER BY Grade DESC\
+                     LIMIT {keepAmount};")
+        temp = self.cur.fetchall()
+        grades = []
+        for grade in temp:
+            grades.append(grade[0])
+        avgGrade = round(sum(grades) / len(grades), 2)
+
+        self.query(f"UPDATE {tableName}\
+                     SET Grade = {avgGrade}\
+                     WHERE AssignmentType = '{assignmentType}'")
+        self.commit()
