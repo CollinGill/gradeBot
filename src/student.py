@@ -3,6 +3,8 @@ import database as db
 import commands as cmd
 from pprint import pprint
 
+# This class connects to the ClassBook database
+# This database several tables of data pertain only to the individual student: SemesterGpas, Assignments, Grades in a class
 class StudentDB(db.Database):
     #--Public Methods--#
     def getGpaList(self):
@@ -18,67 +20,53 @@ class StudentDB(db.Database):
         semesterList = self.cur.fetchall()
         return semesterList if semesterList != [] else f'No grades for semester {semesterNum}...'
     
-    def createClass(self, gradeDB, classDB, className, credits, semesterNum):
+    def addClass(self, gradeDB, classDB):
+        className = input("What class would  you like to add? (Please use the class code, ex. 'MATH 250') ")
         classDBName = ''.join(className.upper().split())
-        classCutoff = classDBName + 'Cutoff'
         tableName = self.name + classDBName
 
-        classDB.query(f"CREATE TABLE IF NOT EXISTS {classDBName} (aID            INTEGER PRIMARY KEY AUTOINCREMENT,\
-                                                                  AssignmentType TEXT NOT NULL,\
-                                                                  PercentOfGrade REAL NOT NULL DEFAULT 0,\
-                                                                  DropAmount     INTEGER NOT NULL DEFAULT 0);")
-        classDB.commit()
+        credits = float(input("How many credits do you get from this class? "))
+        semesterNum = int(input("During which semester are you taking this class? "))
 
-        classDB.query(f"CREATE TABLE IF NOT EXISTS {classCutoff} (gcID   INTEGER PRIMARY KEY AUTOINCREMENT,\
-                                                                  A      REAL NOT NULL DEFAULT 0,\
-                                                                  AMinus REAL NOT NULL DEFAULT 0,\
-                                                                  BPlus  REAL NOT NULL DEFAULT 0,\
-                                                                  B      REAL NOT NULL DEFAULT 0,\
-                                                                  BMinus REAL NOT NULL DEFAULT 0,\
-                                                                  CPlus  REAL NOT NULL DEFAULT 0,\
-                                                                  C      REAL NOT NULL DEFAULT 0,\
-                                                                  D      REAL NOT NULL DEFAULT 0,\
-                                                                  F      REAL NOT NULL DEFAULT 0);")
-
-        classDB.commit()
         self.query(f"CREATE TABLE IF NOT EXISTS {tableName} (aID            INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                              AssignmentType TEXT NOT NULL,\
                                                              PercentOfGrade INTEGER NOT NULL DEFAULT 0,\
-                                                             Grade          FLOAT NOT NULL DEFAULT 0);")
+                                                             Grade          FLOAT NOT NULL DEFAULT -1);")
         self.query(f"INSERT INTO ClassGrades(SemesterNum, ClassName, Credits) VALUES({semesterNum}, '{classDBName}', {credits});")
         self.commit()
 
-        if (classDBName, credits) in gradeDB.getClasses():
-            print(f'NOTE: Class already in database...')
-        else:
-            gradeDB.query(f"INSERT INTO ClassList(Name, Credits) VALUES('{classDBName}', {credits});")
-            gradeDB.commit()
-            classDB.initClass(self, className)
+        classDB.createClass(gradeDB, className, credits, semesterNum)
+        
+        assignments = cmd.getClassStats(classDB, className)
+        for assignment in assignments:
+            self.query(f"INSERT INTO {self.name + classDBName}(AssignmentType, PercentOfGrade) VALUES('{assignment[1]}', {assignment[2]});")
+        self.commit()
 
-
-    # TODO: Check the logic of this method, it seems shaky 
+    # Returns a list of Assignments and their grades from a given class
     def getClassAssignments(self, assignmentType=None):
         className   = input('What class would you like a report of? ')
         classDBName = ''.join(className.upper().split())
         tableName   = self.name + classDBName
+
+        assignmentType = input("What assignment type would you like to check? (Type 'None' for all assignments)? ").upper()
         
         if tableName not in self.tables:
             print(f"ERROR: {classDBName} not in {self.name}'s class list...")
             return
 
-        if assignmentType == None:
-            self.query(f"SELECT AssignmentType, AssignmentName, Grade\
+        if assignmentType == "NONE":
+            self.query(f"SELECT *\
                          FROM Assignments\
                          WHERE ClassName = '{classDBName}';")
             return self.cur.fetchall()
         else:
-            self.query(f"SELECT AssignmentType, AssignmentName, Grade\
-                         FROM {tableName}\
-                         WHERE ClassName = '{classDBName}' AND AssignmentType = '{assignmentType.upper()}';")
+            self.query(f"SELECT *\
+                         FROM Assignments\
+                         WHERE ClassName = '{classDBName}' AND AssignmentType = '{assignmentType}';")
             return self.cur.fetchall()
 
     def addGrade(self, classDB):
-        className   = input('What class would you like to add? ')
+        className   = input('What class would you like to add a grade to? ')
         classDBName = ''.join(className.upper().split())
         tableName   = self.name + classDBName
 
@@ -135,6 +123,9 @@ class StudentDB(db.Database):
         
         print("All done... Thanks!")
 
+    def updateAssignment(self):
+        pass
+
 
     def printDB(self):
         print(f"{self.name}:\n{self.tables}\n")
@@ -172,6 +163,28 @@ class StudentDB(db.Database):
             open(databaseFile, 'w').close()
 
         return databaseFile
+
+    def _deleteClass(self):
+        className = input("What class would you like to purge? ")
+        classDBName = ''.join(className.upper().split())
+        confirmation = input(f"Are you sure you want to purge {classDBName}? (y/n) ").upper()
+
+        if confirmation == "Y":
+            try:
+                self.query(f"DELETE\
+                             FROM Assignments\
+                             WHERE ClassName = '{classDBName}';")
+                self.commit()
+            except:
+                print(f"Sorry! No assignments of class {classDBName} exists in our database...")
+
+            try: 
+                self.query(f"DROP TABLE {self.name + classDBName};")
+                self.commit()
+            except:
+                print(f"Sorry! No class {classDBName} exists in our database...")
+        
+        print("All done... Thanks!")
 
     def _calculateAssignmentAverage(self, classDB, classDBName, assignmentType):
         tableName = self.name + classDBName

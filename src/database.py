@@ -1,6 +1,7 @@
 import os
 import sqlite3
 
+# Base class that adds basic interface for creating and managing a database
 class Database:
     def __init__(self, name):
         self.name = name
@@ -17,6 +18,7 @@ class Database:
     def query(self, command):
         self.cur.execute(command)
 
+    # Saves the changes made to the database's file and then updates the class's internal list of tables
     def commit(self):
         self.con.commit()
         self._updateTables()
@@ -37,7 +39,6 @@ class Database:
 
         return databaseFile
 
-    # Possibly obsolete?
     def _updateTables(self):
         self.tables = []
         self.query("SELECT name\

@@ -1,5 +1,6 @@
 import student as sb
 
+# Creates a student object
 def createStudent(gradeBookDB, name):
     studentDBName = name.split()[0].lower() + ''.join(name.split()[1:]) if ' ' in name else name.lower()
     if name in gradeBookDB.getStudents():
@@ -9,6 +10,7 @@ def createStudent(gradeBookDB, name):
     gradeBookDB.commit()
     return sb.StudentDB(studentDBName)
 
+# Returns a list of assignment types for a specific class
 def getClassStats(classDB, className):
     classDBName = ''.join(className.upper().split())
     classDB.query(f"SELECT *\

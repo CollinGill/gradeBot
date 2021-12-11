@@ -1,5 +1,7 @@
 import database as db
 
+# This class connects to the GradeBook database
+# The data base contains a list of the students with their cumulative GPA
 class GradeBook(db.Database):
     #--Public Methods--#
     def getStudents(self):
@@ -23,9 +25,8 @@ class GradeBook(db.Database):
     def _initDatabase(self):
         self.query("CREATE TABLE IF NOT EXISTS Students (uID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                          Name TEXT NOT NULL,\
-                                                         CulmulativeGPA REAL DEFAULT 0);")
+                                                         CumulativeGPA REAL DEFAULT 0);")
 
-        # I believe this is unnecessary
         self.query("CREATE TABLE IF NOT EXISTS ClassList (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                           Name TEXT NOT NULL,\
                                                           Credits REAL DEFAULT 0)")
