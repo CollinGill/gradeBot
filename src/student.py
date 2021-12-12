@@ -19,6 +19,17 @@ class StudentDB(db.Database):
                      WHERE SemesterNum = {semesterNum};")
         semesterList = self.cur.fetchall()
         return semesterList if semesterList != [] else f'No grades for semester {semesterNum}...'
+
+    def getGrades(self):
+        className   = input('What class would you like a report of? ')
+        classDBName = ''.join(className.upper().split())
+        tableName = self.name + classDBName
+
+        self.query(f"SELECT AssignmentType, Grade\
+                     FROM {tableName}\
+                     WHERE Grade != -1;")
+        return self.cur.fetchall()
+
     
     def addClass(self, gradeDB, classDB):
         className = input("What class would  you like to add? (Please use the class code, ex. 'MATH 250') ")
@@ -33,6 +44,9 @@ class StudentDB(db.Database):
                                                              PercentOfGrade INTEGER NOT NULL DEFAULT 0,\
                                                              Grade          FLOAT NOT NULL DEFAULT -1);")
         self.query(f"INSERT INTO ClassGrades(SemesterNum, ClassName, Credits) VALUES({semesterNum}, '{classDBName}', {credits});")
+
+        self.query(f"INSERT INTO SemesterGpa(SemesterNum, Gpa) VALUES({semesterNum}, -1)")
+
         self.commit()
 
         classDB.createClass(gradeDB, className, credits, semesterNum)
@@ -98,10 +112,11 @@ class StudentDB(db.Database):
         self.commit()
 
         self._calculateAssignmentAverage(classDB, classDBName, assignmentType)
+        self._calculateClassGrade(classDB, classDBName)
 
         print("All done... Thanks!")
 
-    def removeAssignment(self):
+    def removeAssignment(self, classDB):
         className   = input('What class would you like to delete from? ')
         classDBName = ''.join(className.upper().split())
         tableName   = self.name + classDBName
@@ -112,15 +127,21 @@ class StudentDB(db.Database):
 
         print("Here's a list of grades...")
         self.query(f"SELECT AssignmentType, AssignmentName, Grade\
-                     FROM Assignments;")
+                     FROM Assignments\
+                     WHERE ClassName = '{classDBName}';")
         pprint(self.cur.fetchall())
 
         assignmentName = input("What's the name of the assignment you would like to remove? (Case sensitive) ")
+        self.query(f"SELECT AssignmentType\
+                     FROM Assignments\
+                     WHERE AssignmentName = '{assignmentName}' AND ClassName = '{classDBName}';")
+        assignmentType = self.cur.fetchall()[0][0]
         self.query(f"DELETE\
                      FROM Assignments\
-                     WHERE AssignmentName = '{assignmentName}'")
+                     WHERE AssignmentName = '{assignmentName}' AND ClassName = '{classDBName}';")
         self.commit()
-        
+        self._calculateAssignmentAverage(classDB, classDBName, assignmentType)
+        self._calculateClassGrade(classDB, classDBName)
         print("All done... Thanks!")
 
     def updateAssignment(self):
@@ -132,15 +153,16 @@ class StudentDB(db.Database):
 
     #--Private Methods--#
     def _initDatabase(self):
-        self.query(f"CREATE TABLE IF NOT EXISTS SemesterGpa (SemesterNum INTEGER PRIMARY KEY AUTOINCREMENT,\
-                                                             SemesterGpa REAL NOT NULL DEFAULT 0);")
+        self.query(f"CREATE TABLE IF NOT EXISTS SemesterGpa (SemesterNum INTEGER PRIMARY KEY,\
+                                                             Gpa REAL NOT NULL DEFAULT 0);")
         
         self.query(f"CREATE TABLE IF NOT EXISTS ClassGrades (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                              SemesterNum INTEGER NOT NULL,\
                                                              ClassName TEXT NOT NULL,\
                                                              Credits REAL NOT NULL DEFAULT 0,\
                                                              CurrentGrade REAL NOT NULL DEFAULT 0,\
-                                                             FinalGrade REAL NOT NULL DEFAULT 0);")
+                                                             FinalGrade REAL NOT NULL DEFAULT 0,\
+                                                             UNIQUE(ClassName));")
 
         self.query(f"CREATE TABLE IF NOT EXISTS Assignments (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                              ClassName TEXT NOT NULL,\
@@ -173,6 +195,9 @@ class StudentDB(db.Database):
             try:
                 self.query(f"DELETE\
                              FROM Assignments\
+                             WHERE ClassName = '{classDBName}';")
+                self.query(f"DELETE\
+                             FROM ClassGrades\
                              WHERE ClassName = '{classDBName}';")
                 self.commit()
             except:
@@ -211,9 +236,76 @@ class StudentDB(db.Database):
         grades = []
         for grade in temp:
             grades.append(grade[0])
-        avgGrade = round(sum(grades) / len(grades), 2)
+        avgGrade = round(sum(grades) / len(grades), 2) if len(grades) != 0 else -1
 
         self.query(f"UPDATE {tableName}\
                      SET Grade = {avgGrade}\
                      WHERE AssignmentType = '{assignmentType}'")
         self.commit()
+
+    def _calculateClassGrade(self, classDB, classDBName):
+        tableName = self.name + classDBName
+        self.query(f"SELECT PercentOfGrade, Grade\
+                     FROM {tableName};")
+        assignmentGrades = self.cur.fetchall()
+        totalPercentage = 0
+        finalGrade = 0
+        for percentOfGrade, grade in assignmentGrades:
+            if grade != -1:
+                finalGrade += grade * percentOfGrade / 100
+                totalPercentage += percentOfGrade / 100
+
+        currentGrade = round(finalGrade / totalPercentage, 4)
+        finalGrade = round(finalGrade, 4)
+
+        currentGrade = self._getGradeFromPercent(classDB, classDBName, currentGrade)
+        finalGrade = self._getGradeFromPercent(classDB, classDBName, finalGrade)
+
+        self.query(f"UPDATE ClassGrades\
+                     Set CurrentGrade = {currentGrade}, FinalGrade = {finalGrade}\
+                     Where ClassName = '{classDBName}'")
+        self.commit()
+        
+
+        if finalGrade == currentGrade:
+            self.query(f"SELECT SemesterNum\
+                         FROM ClassGrades\
+                         WHERE ClassName = '{classDBName}';")
+            semesterNum = self.cur.fetchall()
+            self._calculateSemesterGPA(semesterNum)
+
+    def _calculateSemesterGPA(self, semesterNum):
+        self.query(f"SELECT Credits, FinalGrade\
+                     FROM ClassGrades\
+                     WHERE SemesterNum = {semesterNum};")
+        classGrades = self.cur.fetchall()
+        totalCredits = 0
+        rawGrade = 0
+        for credits, grade in classGrades:
+            totalCredits += credits
+            rawGrade += grade
+        
+        semesterGrade = round(rawGrade / totalCredits, 4)
+        self.query(f"UPDATE SemesterGpa\
+                     SET Gpa = {semesterGrade}\
+                     WHERE SemesterNum = {semesterNum};")
+        self.commit()
+
+    def _getGradeFromPercent(self, classDB, classDBName, grade):
+        gradeDict = {0: 0.00, 1: 1.00, 2: 2.00, 3: 2.33, 4: 2.67, 5: 3.00, 6: 3.33, 7: 3.67, 8: 4.00}
+        classCutoff = classDBName + 'Cutoff'
+        classDB.query(f"SELECT A, AMinus, BPlus, B, BMinus, CPlus, C, D, F\
+                        FROM {classCutoff};")
+        rawCutoff = classDB.cur.fetchall()[0]
+        cutOffs = []
+        for cutOff in rawCutoff:
+            cutOffs.append(cutOff)
+
+        cutOffs.reverse()
+        cutOffIndex = len(cutOffs) - 1
+        for i in range(len(cutOffs)):
+            if grade < cutOffs[i]:
+                cutOffIndex = i - 1 if i > 0 else 0
+                break
+
+        return gradeDict[cutOffIndex]
