@@ -16,3 +16,7 @@ To start the discord bot, run the following command:
 ```shell
 $ python ./src/main.py
 ```
+
+## Commands to Use with the Bot
+
+***Area under construction***

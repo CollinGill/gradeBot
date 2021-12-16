@@ -40,7 +40,13 @@ class ClassBook(db.Database):
         else:
             gradeDB.query(f"INSERT INTO ClassList(Name, Credits) VALUES('{classDBName}', {credits});")
             gradeDB.commit()
-            self.initClass(self, className)
+            print(f"No class assignments or grade cutoffs have been registered at this for {classDBName}...")
+            print(f"NOTE... These are required unless you are immediately putting in a final grade for {classDBName}")
+            cont = input("Would you like to continue (y/n)? ").strip().lower()
+            if cont == 'y':
+                self.initClass(self, className)
+            else:
+                print("All done... Thanks!")
 
     # Instantiates the class tables with the data pertaining to the class
     def initClass(self, studentDB, className):
@@ -72,6 +78,36 @@ class ClassBook(db.Database):
         
         self.commit()
         print("All done... Thanks!")
+
+    def updateGradeCutoff(self):
+        className = input("What class would you like to change the grade cutoffs to? ").strip()
+        classDBName = ''.join(className.upper().split())
+        classCutoffDB = classDBName + 'Cutoff'
+
+        print("Now, grade cutoffs...")
+        A      = float(input("What is the lower grade cutoff for an A?  "))
+        AMinus = float(input("What is the lower grade cutoff for an A-? "))
+        BPlus  = float(input("What is the lower grade cutoff for an B+? "))
+        B      = float(input("What is the lower grade cutoff for an B?  "))
+        BMinus = float(input("What is the lower grade cutoff for an B-? "))
+        CPlus  = float(input("What is the lower grade cutoff for an C+? "))
+        C      = float(input("What is the lower grade cutoff for an C?  "))
+        D      = float(input("What is the lower grade cutoff for an D?  "))
+        F      = float(input("What is the lower grade cutoff for an F?  "))
+        self.query(f"UPDATE {classCutoffDB}\
+                     SET A = {A},\
+                         AMinus = {AMinus},\
+                         BPlus  = {BPlus},\
+                         B      = {B},\
+                         BMinus = {BMinus}\
+                         CPlus  = {CPlus},\
+                         C      = {C},\
+                         D      = {D},\
+                         F      = {F};")
+        
+        self.commit()
+        print("All done... Thanks!")
+
 
     def getClass(self, className):
         try:

@@ -30,7 +30,6 @@ class StudentDB(db.Database):
                      WHERE Grade != -1;")
         return self.cur.fetchall()
 
-    
     def addClass(self, gradeDB, classDB):
         className = input("What class would  you like to add? (Please use the class code, ex. 'MATH 250') ")
         classDBName = ''.join(className.upper().split())
@@ -45,7 +44,11 @@ class StudentDB(db.Database):
                                                              Grade          FLOAT NOT NULL DEFAULT -1);")
         self.query(f"INSERT INTO ClassGrades(SemesterNum, ClassName, Credits) VALUES({semesterNum}, '{classDBName}', {credits});")
 
-        self.query(f"INSERT INTO SemesterGpa(SemesterNum, Gpa) VALUES({semesterNum}, -1)")
+        try:
+            self.query(f"INSERT INTO SemesterGpa(SemesterNum, Gpa) VALUES({semesterNum}, -1)")
+        except:
+            # Pass since it means that the semester is already initialized
+            pass
 
         self.commit()
 
@@ -147,6 +150,34 @@ class StudentDB(db.Database):
     def updateAssignment(self):
         pass
 
+    def finalizeGrade(self):
+        print("WARNING: Only use this once the grade has been finalized...")
+        yn = input("Do you want to continue? (y/n) ").strip().lower()
+        if yn != 'y':
+            print("All done... Thanks!")
+            return
+        className   = input('What class would you like to finalize? ')
+        classDBName = ''.join(className.upper().split())
+        tableName   = self.name + classDBName
+        grade       = float(input(f'What was your final grade in {classDBName}? (4.0 scale) '))
+
+        self.query(f"SELECT SemesterNum\
+                     FROM ClassGrades\
+                     WHERE ClassName = '{classDBName}';")
+        semesterNum = self.cur.fetchall()[0][0]
+
+        self.query(f"UPDATE ClassGrades\
+                     SET CurrentGrade = {grade}, FinalGrade = {grade}\
+                     WHERE ClassName = '{classDBName}';")
+        self.query(f"DELETE FROM Assignments\
+                     WHERE ClassName = '{classDBName}';")
+        self.query(f"DROP TABLE IF EXISTS {tableName}")
+        self.commit()
+
+        self._calculateSemesterGPA(semesterNum)
+
+        print("All done... Thanks!")
+
 
     def printDB(self):
         print(f"{self.name}:\n{self.tables}\n")
@@ -160,8 +191,8 @@ class StudentDB(db.Database):
                                                              SemesterNum INTEGER NOT NULL,\
                                                              ClassName TEXT NOT NULL,\
                                                              Credits REAL NOT NULL DEFAULT 0,\
-                                                             CurrentGrade REAL NOT NULL DEFAULT 0,\
-                                                             FinalGrade REAL NOT NULL DEFAULT 0,\
+                                                             CurrentGrade REAL NOT NULL DEFAULT -1,\
+                                                             FinalGrade REAL NOT NULL DEFAULT -1,\
                                                              UNIQUE(ClassName));")
 
         self.query(f"CREATE TABLE IF NOT EXISTS Assignments (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -256,22 +287,20 @@ class StudentDB(db.Database):
                 totalPercentage += percentOfGrade / 100
 
         currentGrade = round(finalGrade / totalPercentage, 4)
-        finalGrade = round(finalGrade, 4)
 
         currentGrade = self._getGradeFromPercent(classDB, classDBName, currentGrade)
-        finalGrade = self._getGradeFromPercent(classDB, classDBName, finalGrade)
 
         self.query(f"UPDATE ClassGrades\
-                     Set CurrentGrade = {currentGrade}, FinalGrade = {finalGrade}\
+                     Set CurrentGrade = {currentGrade}\
                      Where ClassName = '{classDBName}'")
         self.commit()
         
 
-        if finalGrade == currentGrade:
+        if totalPercentage == 1:
             self.query(f"SELECT SemesterNum\
                          FROM ClassGrades\
                          WHERE ClassName = '{classDBName}';")
-            semesterNum = self.cur.fetchall()
+            semesterNum = self.cur.fetchall()[0][0]
             self._calculateSemesterGPA(semesterNum)
 
     def _calculateSemesterGPA(self, semesterNum):
@@ -282,8 +311,9 @@ class StudentDB(db.Database):
         totalCredits = 0
         rawGrade = 0
         for credits, grade in classGrades:
-            totalCredits += credits
-            rawGrade += grade
+            if grade != -1:
+                totalCredits += credits
+                rawGrade += grade * credits
         
         semesterGrade = round(rawGrade / totalCredits, 4)
         self.query(f"UPDATE SemesterGpa\
