@@ -24,11 +24,12 @@ class GradeBook(db.Database):
     #--Private Methods--#
     def _initDatabase(self):
         self.query("CREATE TABLE IF NOT EXISTS Students (uID INTEGER PRIMARY KEY AUTOINCREMENT,\
+                                                         DiscordName TEXT NOT NULL,\
                                                          Name TEXT NOT NULL,\
                                                          CumulativeGPA REAL DEFAULT 0);")
 
         self.query("CREATE TABLE IF NOT EXISTS ClassList (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                           Name TEXT NOT NULL,\
-                                                          Credits REAL DEFAULT 0)")
+                                                          Credits REAL DEFAULT 0);")
 
         self.commit()

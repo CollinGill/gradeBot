@@ -1,12 +1,22 @@
 import os
 import database as db
 import commands as cmd
+import sqlite3
 from pprint import pprint
 
 # This class connects to the ClassBook database
 # This database several tables of data pertain only to the individual student: SemesterGpas, Assignments, Grades in a class
 class StudentDB(db.Database):
     #--Public Methods--#
+    def __init__(self, discordName, name):
+        self.name = name
+        self.discordName = discordName
+        self._dbLocation = self._createDBFile(self.name) # unsure if needed
+        self.con = sqlite3.connect(self._dbLocation)
+        self.cur = self.con.cursor()
+        self.tables = []
+        self._initDatabase()
+
     def getGpaList(self):
         self.query("SELECT *\
                     FROM SemesterGpa;")
