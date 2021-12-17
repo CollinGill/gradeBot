@@ -7,11 +7,9 @@ import database as db
 class ClassBook(db.Database):
     #--Public Methods--#
     # Creates the class tables
-    def createClass(self, gradeDB, className=None, credits=None, semesterNum=None):
-        if className == None or credits == None or semesterNum == None:
-            className = input("What class would  you like to add? (Please use the class code, ex. 'MATH 250') ")
-            credits = float(input("How many credits do you get from this class? "))
-            semesterNum = int(input("During which semester are you taking this class? "))
+    async def createClass(self, gradeDB, bot, author, className, credits):
+        def check(message):
+            return message.author == author
 
         classDBName = ''.join(className.upper().split())
         classCutoff = classDBName + 'Cutoff'
@@ -40,44 +38,87 @@ class ClassBook(db.Database):
         else:
             gradeDB.query(f"INSERT INTO ClassList(Name, Credits) VALUES('{classDBName}', {credits});")
             gradeDB.commit()
-            print(f"No class assignments or grade cutoffs have been registered at this for {classDBName}...")
-            print(f"NOTE... These are required unless you are immediately putting in a final grade for {classDBName}")
-            cont = input("Would you like to continue (y/n)? ").strip().lower()
+            await author.send(f"No class assignments or grade cutoffs have been registered at this for {classDBName}...")
+            await author.send(f"NOTE... These are required unless you are immediately putting in a final grade for {classDBName}")
+            await author.send("Would you like to continue (y/n)?")
+            cont = await bot.wait_for('message', check=check)
+            cont = cont.content.strip().lower()
             if cont == 'y':
-                self.initClass(self, className)
+                await self.initClass(className, bot, author)
             else:
-                print("All done... Thanks!")
+                await author.send("All done... Thanks!")
 
     # Instantiates the class tables with the data pertaining to the class
-    def initClass(self, studentDB, className):
+    async def initClass(self, className, bot, author):
+        def check(message):
+            return message.author == author
+
         classDBName = ''.join(className.upper().split())
         classCutoffDB = classDBName + 'Cutoff'
 
-        print(f'\nPlease have the syllabus for {classDBName} available')
-        print("First up is assignment categories...")
-        assignmentNums = int(input("How many types of assignments are there? "))
-        for i in range(assignmentNums):
-            print(f"\nAssignment type {i+1}:")
-            assignmentType = input("What is the type of assignment? ").upper()
-            percentOfGrade = float(input("What is the percent of the final grade is this type worth? (Enter like '50') ")) 
-            dropAmount     = int(input("How many grades of this type can you drop? "))
-            self.query(f"INSERT INTO {classDBName}(AssignmentType, PercentOfGrade, DropAmount) VALUES('{assignmentType}', {percentOfGrade}, {dropAmount});")
-        studentDB.commit()
+        await author.send(f'\nPlease have the syllabus for {classDBName} available')
+        await author.send("First up is assignment categories...")
+        await author.send("How many types of assignments are there?")
+        assignmentNums = await bot.wait_for('message', check=check)
+        assignmentNums = int(assignmentNums.content)
 
-        print("Now, grade cutoffs...")
-        A      = float(input("What is the lower grade cutoff for an A?  "))
-        AMinus = float(input("What is the lower grade cutoff for an A-? "))
-        BPlus  = float(input("What is the lower grade cutoff for an B+? "))
-        B      = float(input("What is the lower grade cutoff for an B?  "))
-        BMinus = float(input("What is the lower grade cutoff for an B-? "))
-        CPlus  = float(input("What is the lower grade cutoff for an C+? "))
-        C      = float(input("What is the lower grade cutoff for an C?  "))
-        D      = float(input("What is the lower grade cutoff for an D?  "))
-        F      = float(input("What is the lower grade cutoff for an F?  "))
+        for i in range(assignmentNums):
+            await author.send(f"\nAssignment type {i+1}:")
+            await author.send("What is the type of assignment?")
+            assignmentType = await bot.wait_for('message', check=check)
+            assignmentType = assignmentType.content.upper()
+
+            await author.send("What percent of the final grade is this type worth? ('50' for 50%)")
+            percentOfGrade = await bot.wait_for('message', check=check)
+            percentOfGrade = float(percentOfGrade.content) 
+
+            await author.send("How many grades of this type can you drop?")
+            dropAmount = await bot.wait_for('message', check=check)
+            dropAmount = int(dropAmount.content)
+            self.query(f"INSERT INTO {classDBName}(AssignmentType, PercentOfGrade, DropAmount) VALUES('{assignmentType}', {percentOfGrade}, {dropAmount});")
+
+        await author.send("Now, grade cutoffs...")
+
+        await author.send("What is the lower grade cutoff for an A?")
+        A      = await bot.wait_for('message', check=check)
+        A      = float(A.content)
+
+        await author.send("What is the lower grade cutoff for an A-?")
+        AMinus = await bot.wait_for('message', check=check)
+        AMinus = float(AMinus.content)
+        
+        await author.send("What is the lower grade cutoff for an B+?")
+        BPlus  = await bot.wait_for('message', check=check)
+        BPlus  = float(BPlus.content)
+
+        await author.send("What is the lower grade cutoff for an B?")
+        B      = await bot.wait_for('message', check=check)
+        B      = float(B.content)
+
+        await author.send("What is the lower grade cutoff for an B-?")
+        BMinus = await bot.wait_for('message', check=check)
+        BMinus = float(BMinus.content)
+
+        await author.send("What is the lower grade cutoff for an C+?")
+        CPlus  = await bot.wait_for('message', check=check)
+        CPlus  = float(CPlus.content)
+
+        await author.send("What is the lower grade cutoff for an C?")
+        C      = await bot.wait_for('message', check=check)
+        C      = float(C.content)
+
+        await author.send("What is the lower grade cutoff for an D?")
+        D      = await bot.wait_for('message', check=check)
+        D      = float(D.content)
+
+        await author.send("What is the lower grade cutoff for an F?")
+        F      = await bot.wait_for('message', check=check)
+        F      = float(F.content)
+
         self.query(f"INSERT INTO {classCutoffDB}(A, AMinus, BPlus, B, BMinus, CPlus, C, D, F) VALUES({A},{AMinus},{BPlus},{B},{BMinus},{CPlus},{C},{D},{F});")
         
         self.commit()
-        print("All done... Thanks!")
+        await author.send("All done... Thanks!")
 
     def updateGradeCutoff(self):
         className = input("What class would you like to change the grade cutoffs to? ").strip()
@@ -118,8 +159,8 @@ class ClassBook(db.Database):
         except:
             return []
 
-    def printDB(self):
-        print(f"ClassBook:\n{self._classesList()}\n")
+    async def printDB(self, author):
+        await author.send(f"ClassBook:\n{self._classesList()}\n")
 
     #--Private Methods--#
     def _initDatabase(self):
@@ -141,11 +182,19 @@ class ClassBook(db.Database):
         return databaseFile
 
     # Purges all records of the class from the ClassBook and GradeBook
-    def _purgeClass(self, gradeDB):
-        className = input("What class would you like to purge? ")
+    async def _purgeClass(self, gradeDB, bot, author):
+        def check(message):
+            return message.author == author
+
+        await author.send("What class would you like to purge?")
+        className = await bot.wait_for('message', check=check)
+        className = className.content
         classDBName = ''.join(className.upper().split())
         classCutoffDB = classDBName + 'Cutoff'
-        confirmation = input(f"Are you sure you want to purge {classDBName}? (y/n) ").upper()
+
+        await author.send(f"Are you sure you want to purge {classDBName}? (y/n)")
+        confirmation = await bot.wait_for('message', check=check)
+        confirmation = confirmation.content.strip().upper()
 
         if confirmation == "Y":
             try:

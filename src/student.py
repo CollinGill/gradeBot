@@ -4,6 +4,8 @@ import commands as cmd
 import sqlite3
 from pprint import pprint
 
+from gradebook import GradeBook
+
 # This class connects to the ClassBook database
 # This database several tables of data pertain only to the individual student: SemesterGpas, Assignments, Grades in a class
 class StudentDB(db.Database):
@@ -16,6 +18,10 @@ class StudentDB(db.Database):
         self.cur = self.con.cursor()
         self.tables = []
         self._initDatabase()
+    
+    def getCumulativeGpa(self, gradeDB):
+        gradeDB.query(f"SELECT CumulativeGPA FROM Students WHERE DiscordName = '{self.discordName}';")
+        return gradeDB.cur.fetchone()[0]
 
     def getGpaList(self):
         self.query("SELECT *\
@@ -40,13 +46,20 @@ class StudentDB(db.Database):
                      WHERE Grade != -1;")
         return self.cur.fetchall()
 
-    def addClass(self, gradeDB, classDB):
-        className = input("What class would  you like to add? (Please use the class code, ex. 'MATH 250') ")
+    async def addClass(self, gradeDB, classDB, bot, author):
+        def check(message):
+            return message.author == author
+        await author.send("What class would  you like to add? (Please use the class code, ex. 'MATH 250')")
+        className = await bot.wait_for('message', check=check)
+        className = className.content
         classDBName = ''.join(className.upper().split())
         tableName = self.name + classDBName
-
-        credits = float(input("How many credits do you get from this class? "))
-        semesterNum = int(input("During which semester are you taking this class? "))
+        await author.send("How many credits do you get from this class?")
+        credits = await bot.wait_for('message', check=check)
+        credits = float(credits.content)
+        await author.send("During which semester did you take this class?")
+        semesterNum = await bot.wait_for('message', check=check)
+        semesterNum = int(semesterNum.content)
 
         self.query(f"CREATE TABLE IF NOT EXISTS {tableName} (aID            INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                              AssignmentType TEXT NOT NULL,\
@@ -62,7 +75,7 @@ class StudentDB(db.Database):
 
         self.commit()
 
-        classDB.createClass(gradeDB, className, credits, semesterNum)
+        await classDB.createClass(gradeDB, bot, author, className, credits)
         
         assignments = cmd.getClassStats(classDB, className)
         for assignment in assignments:
@@ -160,16 +173,27 @@ class StudentDB(db.Database):
     def updateAssignment(self):
         pass
 
-    def finalizeGrade(self):
-        print("WARNING: Only use this once the grade has been finalized...")
-        yn = input("Do you want to continue? (y/n) ").strip().lower()
+    async def finalizeGrade(self, gradeDB, bot, author):
+        def check(message):
+            return message.author == author
+
+        await author.send("WARNING: Only use this once the grade has been finalized...")
+        await author.send("Do you want to continue (y/n)")
+        yn = await bot.wait_for('message', check=check)
+        yn = yn.content.strip().lower()
         if yn != 'y':
-            print("All done... Thanks!")
+            await author.send("All done... Thanks!")
             return
-        className   = input('What class would you like to finalize? ')
+
+        await author.send("What class would you like to finalize?")
+        className   = await bot.wait_for('message', check=check) 
+        className   = className.content
         classDBName = ''.join(className.upper().split())
         tableName   = self.name + classDBName
-        grade       = float(input(f'What was your final grade in {classDBName}? (4.0 scale) '))
+
+        await author.send(f"What was your final grade in {classDBName}? (4.0 scale)")
+        grade = await bot.wait_for('message', check=check)
+        grade = float(grade.content.strip())
 
         self.query(f"SELECT SemesterNum\
                      FROM ClassGrades\
@@ -185,8 +209,9 @@ class StudentDB(db.Database):
         self.commit()
 
         self._calculateSemesterGPA(semesterNum)
+        self._calculateCumulativeGPA(gradeDB)
 
-        print("All done... Thanks!")
+        await author.send("All done... Thanks!")
 
 
     def printDB(self):
@@ -227,10 +252,17 @@ class StudentDB(db.Database):
 
         return databaseFile
 
-    def _deleteClass(self):
-        className = input("What class would you like to purge? ")
+    async def _deleteClass(self, bot, author):
+        def check(message):
+            return message.author == author
+        await author.send("What class would you like to purge?")
+        className = await bot.wait_for('message', check=check)
+        className = className.content
         classDBName = ''.join(className.upper().split())
-        confirmation = input(f"Are you sure you want to purge {classDBName}? (y/n) ").upper()
+
+        await author.send(f"Are you sure you want to purge {classDBName}? (y/n)")
+        confirmation = await bot.wait_for('message', check=check)
+        confirmation = confirmation.content.strip().upper()
 
         if confirmation == "Y":
             try:
@@ -242,15 +274,15 @@ class StudentDB(db.Database):
                              WHERE ClassName = '{classDBName}';")
                 self.commit()
             except:
-                print(f"Sorry! No assignments of class {classDBName} exists in our database...")
+                await author.send(f"Sorry! No assignments of class {classDBName} exists in your database...")
 
             try: 
                 self.query(f"DROP TABLE {self.name + classDBName};")
                 self.commit()
             except:
-                print(f"Sorry! No class {classDBName} exists in our database...")
+                await author.send(f"Sorry! No class {classDBName} exists in our database...")
         
-        print("All done... Thanks!")
+        await author.send("All done... Thanks!")
 
     def _calculateAssignmentAverage(self, classDB, classDBName, assignmentType):
         tableName = self.name + classDBName
@@ -330,6 +362,21 @@ class StudentDB(db.Database):
                      SET Gpa = {semesterGrade}\
                      WHERE SemesterNum = {semesterNum};")
         self.commit()
+
+    def _calculateCumulativeGPA(self, gradeDB):
+        semesters = self.getGpaList()
+        numSemesters = 0
+        rawGpa = 0
+        for _, gpa in semesters:
+            numSemesters += 1
+            rawGpa += gpa
+
+        cumulativeGPA = round(rawGpa / numSemesters, 4)
+        gradeDB.query(f"UPDATE Students\
+                        SET CumulativeGPA = {cumulativeGPA}\
+                        WHERE DiscordName = '{self.discordName}';")
+        gradeDB.commit()
+            
 
     def _getGradeFromPercent(self, classDB, classDBName, grade):
         gradeDict = {0: 0.00, 1: 1.00, 2: 2.00, 3: 2.33, 4: 2.67, 5: 3.00, 6: 3.33, 7: 3.67, 8: 4.00}
