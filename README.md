@@ -5,10 +5,10 @@
 ## Development Goals/Progress
 
 - [x] Creates local database 
-- [ ] Commands set up to create the necessary databases and calculate the values
-- [ ] Interfaces with discord
+- [x] Commands set up to create the necessary databases and calculate the values
+- [x] Interfaces with discord
 - [ ] Discord commands set up
-- [ ] Cross-platform (currently only linux)
+- [ ] Cross-platform hosting (currently only supports linux/mac file directories)
 
 ## Usage
 
@@ -19,4 +19,7 @@ $ python ./src/main.py
 
 ## Commands to Use with the Bot
 
-***Area under construction***
+```
+> hello
+```
+- Brings up a dialogue loop the user can use to view and modify their data
