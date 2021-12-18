@@ -28,16 +28,24 @@ class StudentDB(db.Database):
                     FROM SemesterGpa;")
         return self.cur.fetchall()
     
-    def getSemesterGrades(self):
-        semesterNum = int(input('What semester would you like to check? '))
+    async def getSemesterGrades(self, bot, author):
+        def check(message):
+            return message.author == author
+        await author.send("What semester would you like to check?")
+        semesterNum = await bot.wait_for('message', check=check)
+        semesterNum = int(semesterNum.content)
         self.query(f"SELECT ClassName, CurrentGrade\
                      FROM ClassGrades\
                      WHERE SemesterNum = {semesterNum};")
         semesterList = self.cur.fetchall()
         return semesterList if semesterList != [] else f'No grades for semester {semesterNum}...'
 
-    def getGrades(self):
-        className   = input('What class would you like a report of? ')
+    async def getGrades(self, bot, author):
+        def check(message):
+            return message.author == author
+        await author.send("What class would you like a report of?")
+        className = await bot.wait_for('message', check=check)
+        className = className.content
         classDBName = ''.join(className.upper().split())
         tableName = self.name + classDBName
 
@@ -105,30 +113,43 @@ class StudentDB(db.Database):
                          WHERE ClassName = '{classDBName}' AND AssignmentType = '{assignmentType}';")
             return self.cur.fetchall()
 
-    def addGrade(self, classDB):
-        className   = input('What class would you like to add a grade to? ')
+    async def addGrade(self, classDB, bot, author):
+        def check(message):
+            return message.author == author
+        await author.send('What class would you like to add a grade to?')
+        className   = await bot.wait_for('message', check=check)
+        className   = className.content
         classDBName = ''.join(className.upper().split())
         tableName   = self.name + classDBName
 
         if tableName not in self.tables:
-            print(f"ERROR: {classDBName} not in {self.name}'s class list...")
+            await author.send(f"Sorry, {classDBName} not in your class list...")
             return
 
-        print("Current Class Assignments:")
+        await author.send("Current Class Assignments:")
         classStats = []
         temp = cmd.getClassStats(classDB, className)
         for assignment in temp:
             classStats.append(assignment[1])
         
-        pprint(classStats)
+        await author.send('\n'.join(classStats))
 
-        print("\nGrade Information:")
-        assignmentName = input("What is the name of the assignment? ").strip()
-        assignmentType = input("What is the type of the assignment? ").strip().upper()
-        grade          = float(input("What is the grade of the assignment? "))
+        await author.send("\nGrade Information:")
+
+        await author.send("What is the name of the assignment?")
+        assignmentName = await bot.wait_for('message', check=check)
+        assignmentName = assignmentName.content.strip()
+
+        await author.send("What is the type of the assignment?")
+        assignmentType = await bot.wait_for('message', check=check)
+        assignmentType = assignmentType.content.strip().upper()
+
+        await author.send("What is the grade of the assignment?")
+        grade = await bot.wait_for('message', check=check)
+        grade = float(grade.content)
 
         if assignmentType not in classStats:
-            print(f"ERROR: {assignmentType} not in {classDBName}...")
+            await author.send(f"Sorry, {assignmentType} not in {classDBName}...")
             return
 
         self.query(f"INSERT INTO Assignments (ClassName, AssignmentType, AssignmentName, Grade) VALUES('{classDBName}',\
@@ -140,7 +161,7 @@ class StudentDB(db.Database):
         self._calculateAssignmentAverage(classDB, classDBName, assignmentType)
         self._calculateClassGrade(classDB, classDBName)
 
-        print("All done... Thanks!")
+        await author.send("All done... Thanks!")
 
     def removeAssignment(self, classDB):
         className   = input('What class would you like to delete from? ')

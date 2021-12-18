@@ -40,7 +40,7 @@ class ClassBook(db.Database):
             gradeDB.commit()
             await author.send(f"No class assignments or grade cutoffs have been registered at this for {classDBName}...")
             await author.send(f"NOTE... These are required unless you are immediately putting in a final grade for {classDBName}")
-            await author.send("Would you like to continue (y/n)?")
+            await author.send("Would you like to continue? Yes to continue adding information, no to return to dialogue... (y/n)?")
             cont = await bot.wait_for('message', check=check)
             cont = cont.content.strip().lower()
             if cont == 'y':

@@ -62,7 +62,8 @@ class MyClient(discord.Client):
                                    4. Check grades in a class\n\
                                    5. Add a class\n\
                                    6. Add an assignment to a class\n\
-                                   7. Finalize a class's grade")
+                                   7. Finalize a class's grade\n\
+                                   8. Remove class from yourself")
                 num = await self.wait_for('message', check=check)
                 num = int(num.content.strip())
                 if num == 1:
@@ -76,28 +77,48 @@ class MyClient(discord.Client):
                     msg = '\n'.join(msg)
                     await author.send(msg)
                 elif num == 3:
-                    pass
+                    classes = await currentStudent.getSemesterGrades(self, author)
+                    if type(classes) == str:
+                        await author.send(classes)
+                    else:
+                        msg = []
+                        for className, classGrade in classes:
+                            msg.append(f'{className}: {classGrade}')
+                        msg = '\n'.join(msg)
+                        await author.send(msg)
                 elif num == 4:
-                    pass
+                    assignments = await currentStudent.getGrades(self, author)
+                    if assignments:
+                        msg = []
+                        for assignmentType, grade in assignments:
+                            msg.append(f"{assignmentType}: {grade}")
+                        msg = '\n'.join(msg)
+                        await author.send(msg)
+                    else:
+                        await author.send("No assignments in class")
                 elif num == 5:
                     await currentStudent.addClass(gradeBook, classBook, self, author)
                 elif num == 6:
-                    pass
+                    await currentStudent.addGrade(classBook, self, author)
                 elif num == 7:
                     await currentStudent.finalizeGrade(gradeBook, self, author)
+                elif num == 8:
+                    await currentStudent._deleteClass(self, author)
 
                 #--Commands not meant for user access--#
                 elif num == -1:
-                    await currentStudent._deleteClass(self, author)
-                elif num == -2:
                     await classBook._purgeClass(gradeBook, self, author)
-                elif num == -3:
+                elif num == -2:
                     await classBook.printDB(author)
+                elif num == -3:
+                    await author.send(str(gradeBook.getStudents()))
                 
                 await author.send("Would you like to continue? (y/n)")
                 cont = await self.wait_for('message', check=check)
                 cont = cont.content.strip().lower()
                 if cont == 'n':
                     break
-            await author.send("Thank you, bye!")
+            await author.send("Thank you, bye! \\(^-^)/")
             currentStudent = None
+        elif content.lower() == 'help':
+            await author.send('Hello \(^-^)/\nPlease type `> hello` in order to access the dialogue options!')
