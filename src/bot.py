@@ -44,7 +44,7 @@ class MyClient(discord.Client):
         elif content.lower() == 'hello':
             gradeBook.query(f"SELECT Name\
                               FROM Students\
-                              WHERE DiscordName = '{author}'")
+                              WHERE DiscordName = '{author.id}'")
             name = gradeBook.cur.fetchone()
             if name == None:
                 await author.send(f"{author}, what's your first and last name?")
@@ -52,7 +52,7 @@ class MyClient(discord.Client):
                 name = name.content.strip()
             else:
                 name = name[0]
-            currentStudent = cmd.createStudent(gradeBook, author, name)
+            currentStudent = cmd.createStudent(gradeBook, author.id, name)
             await author.send(f"Hello {currentStudent.name}!")
             while True:
                 await author.send("What would you like to do?\n\

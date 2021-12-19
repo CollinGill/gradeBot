@@ -10,7 +10,7 @@ class GradeBook(db.Database):
         studentNames = []
         students = self.cur.fetchall()
         for i in range(len(students)):
-            studentNames.append(students[i][2])
+            studentNames.append(students[i][1])
         return studentNames
 
     def getClasses(self):
@@ -26,8 +26,7 @@ class GradeBook(db.Database):
         self.query("CREATE TABLE IF NOT EXISTS Students (uID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                          DiscordName TEXT NOT NULL,\
                                                          Name TEXT NOT NULL,\
-                                                         CumulativeGPA REAL DEFAULT 0,\
-                                                         UNIQUE(DiscordName));")
+                                                         CumulativeGPA REAL DEFAULT 0);")
 
         self.query("CREATE TABLE IF NOT EXISTS ClassList (cID INTEGER PRIMARY KEY AUTOINCREMENT,\
                                                           Name TEXT NOT NULL,\

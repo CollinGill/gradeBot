@@ -4,7 +4,7 @@ import student as sb
 def createStudent(gradeBookDB, discordName, name):
     studentDBName = name.split()[0].lower() + ''.join(name.split()[1:]) if ' ' in name else name.lower()
 
-    if name in gradeBookDB.getStudents():
+    if str(discordName) in gradeBookDB.getStudents():
         print('NOTE: Name already in database...')
         return sb.StudentDB(discordName, studentDBName)
     gradeBookDB.query(f"INSERT INTO Students(DiscordName, Name) VALUES('{discordName}', '{name}')")
