@@ -24,7 +24,7 @@ class GradeBook(db.Database):
     #--Private Methods--#
     def _initDatabase(self):
         self.query("CREATE TABLE IF NOT EXISTS Students (uID INTEGER PRIMARY KEY AUTOINCREMENT,\
-                                                         DiscordName TEXT NOT NULL,\
+                                                         DiscordName INTEGER NOT NULL,\
                                                          Name TEXT NOT NULL,\
                                                          CumulativeGPA REAL DEFAULT 0);")
 

@@ -44,7 +44,7 @@ class MyClient(discord.Client):
         elif content.lower() == 'hello':
             gradeBook.query(f"SELECT Name\
                               FROM Students\
-                              WHERE DiscordName = '{author.id}'")
+                              WHERE DiscordName = {author.id}")
             name = gradeBook.cur.fetchone()
             if name == None:
                 await author.send(f"{author}, what's your first and last name?")
@@ -53,20 +53,24 @@ class MyClient(discord.Client):
             else:
                 name = name[0]
             currentStudent = cmd.createStudent(gradeBook, author.id, name)
-            await author.send(f"Hello {currentStudent.name}!")
+            dialogueOptions = """
+What would you like to do? (type `0` to exit)
+1. Check overall GPA
+2. Check the cumulative gpa for a semester
+3. Check class grades for a semester
+4. Check grades in a class
+5. Add a class
+6. Add an assignment to a class
+7. Finalize a class's grade
+8. Remove class from yourself"""
+            await author.send(f"Hello, {name}!")
             while True:
-                await author.send("What would you like to do?\n\
-                                   1. Check overall GPA\n\
-                                   2. Check the cumulative gpa for a semester\n\
-                                   3. Check class grades for a semester\n\
-                                   4. Check grades in a class\n\
-                                   5. Add a class\n\
-                                   6. Add an assignment to a class\n\
-                                   7. Finalize a class's grade\n\
-                                   8. Remove class from yourself")
+                await author.send(dialogueOptions)
                 num = await self.wait_for('message', check=check)
                 num = int(num.content.strip())
-                if num == 1:
+                if num == 0:
+                    break
+                elif num == 1:
                     gpa = currentStudent.getCumulativeGpa(gradeBook)
                     await author.send(f"Your cumulative gpa is {gpa}")
                 elif num == 2:
@@ -83,7 +87,9 @@ class MyClient(discord.Client):
                     else:
                         msg = []
                         for className, classGrade in classes:
-                            msg.append(f'{className}: {classGrade}')
+                            if classGrade == -1:
+                                classGrade = 'N/A'
+                            msg.append(f'{className}:\t{classGrade}')
                         msg = '\n'.join(msg)
                         await author.send(msg)
                 elif num == 4:
@@ -103,7 +109,7 @@ class MyClient(discord.Client):
                 elif num == 7:
                     await currentStudent.finalizeGrade(gradeBook, self, author)
                 elif num == 8:
-                    await currentStudent._deleteClass(self, author)
+                    await currentStudent.deleteClass(self, author)
 
                 #--Commands not meant for user access--#
                 elif num == -1:
@@ -118,7 +124,7 @@ class MyClient(discord.Client):
                 cont = cont.content.strip().lower()
                 if cont == 'n':
                     break
-            await author.send("Thank you, bye! \\(^-^)/")
+            await author.send("Thank you, bye! \\\(^-^)/")
             currentStudent = None
         elif content.lower() == 'help':
-            await author.send('Hello \(^-^)/\nPlease type `> hello` in order to access the dialogue options!')
+            await author.send('Hello \\\(^-^)/\nPlease type `> hello` in order to access the dialogue options!')

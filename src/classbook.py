@@ -202,14 +202,14 @@ class ClassBook(db.Database):
                 self.query(f"DROP TABLE {classCutoffDB};")
                 self.commit()
             except:
-                print(f"Sorry! No class {classDBName} exists in our database...")
-                print("Here are our current classes:")
-                self.printDB()
+                await author.send(f"Sorry! No class {classDBName} exists in our database...")
+                await author.send("Here are our current classes:")
+                self.printDB(author)
             try:
                 gradeDB.query(f"DELETE FROM ClassList WHERE Name = '{classDBName}';")
                 gradeDB.commit()
             except:
-                print(f"Sorry! No class {classDBName} exists in our class database...")
+                await author.send(f"Sorry! No class {classDBName} exists in our class database...")
 
         print("All done... Thanks!")
 

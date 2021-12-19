@@ -36,7 +36,8 @@ class StudentDB(db.Database):
         semesterNum = int(semesterNum.content)
         self.query(f"SELECT ClassName, CurrentGrade\
                      FROM ClassGrades\
-                     WHERE SemesterNum = {semesterNum};")
+                     WHERE SemesterNum = {semesterNum}\
+                     ORDER BY ClassName;")
         semesterList = self.cur.fetchall()
         return semesterList if semesterList != [] else f'No grades for semester {semesterNum}...'
 
@@ -57,15 +58,19 @@ class StudentDB(db.Database):
     async def addClass(self, gradeDB, classDB, bot, author):
         def check(message):
             return message.author == author
-        await author.send("What class would  you like to add? (Please use the class code, ex. 'MATH 250')")
+        await author.send("What class would  you like to add? (Please use the class code, ex. 'MATH 250') (type `cancel` to cancel)")
         className = await bot.wait_for('message', check=check)
         className = className.content
+
+        if className.lower().strip() == 'cancel':
+            return
+
         classDBName = ''.join(className.upper().split())
         tableName = self.name + classDBName
         await author.send("How many credits do you get from this class?")
         credits = await bot.wait_for('message', check=check)
         credits = float(credits.content)
-        await author.send("During which semester did you take this class?")
+        await author.send("During which semester did you take this class? (i.e. 1, 2, 3, 4, etc.)")
         semesterNum = await bot.wait_for('message', check=check)
         semesterNum = int(semesterNum.content)
 
@@ -212,9 +217,10 @@ class StudentDB(db.Database):
         classDBName = ''.join(className.upper().split())
         tableName   = self.name + classDBName
 
-        await author.send(f"What was your final grade in {classDBName}? (4.0 scale)")
+        await author.send(f"What was your final grade in {classDBName}? (A, A-, B+, etc.)")
         grade = await bot.wait_for('message', check=check)
-        grade = float(grade.content.strip())
+        grade = ''.join(grade.content.strip().upper().split())
+        grade = self._getGradeFromLetter(grade)
 
         self.query(f"SELECT SemesterNum\
                      FROM ClassGrades\
@@ -234,6 +240,60 @@ class StudentDB(db.Database):
 
         await author.send("All done... Thanks!")
 
+    async def deleteClass(self, bot, author):
+        def check(message):
+            return message.author == author
+        
+        self.query("SELECT ClassName\
+                    FROM ClassGrades\
+                    ORDER BY ClassName;")
+        output = self.cur.fetchall()
+        classes = []
+
+        i = 0
+        for className in output:
+            if i % 3 == 0 and i != 0:
+                classes.append(f'{className[0]}\n\n')
+            else:
+                classes.append(f'{className[0]}\t')
+            i += 1
+
+        classes.append('\n')
+        classes = ''.join(classes)
+
+        await author.send(f"Here is a list of your classes:\n{classes}")
+        await author.send("What class would you like to purge? (type `cancel` to cancel)")
+        className = await bot.wait_for('message', check=check)
+        className = className.content
+        classDBName = ''.join(className.upper().split())
+
+        if className.lower() == 'cancel':
+            await author.send("All done... Thanks!")
+            return
+
+        await author.send(f"Are you sure you want to purge {classDBName}? (y/n)")
+        confirmation = await bot.wait_for('message', check=check)
+        confirmation = confirmation.content.strip().upper()
+
+        if confirmation == "Y":
+            try:
+                self.query(f"DELETE\
+                             FROM Assignments\
+                             WHERE ClassName = '{classDBName}';")
+                self.query(f"DELETE\
+                             FROM ClassGrades\
+                             WHERE ClassName = '{classDBName}';")
+                self.commit()
+            except:
+                await author.send(f"Sorry! No assignments of class {classDBName} exists in your database...")
+
+            try: 
+                self.query(f"DROP TABLE {self.name + classDBName};")
+                self.commit()
+            except:
+                await author.send(f"Sorry! No class {classDBName} exists in our database...")
+        
+        await author.send("All done... Thanks!")
 
     def printDB(self):
         print(f"{self.name}:\n{self.tables}\n")
@@ -273,37 +333,6 @@ class StudentDB(db.Database):
 
         return databaseFile
 
-    async def _deleteClass(self, bot, author):
-        def check(message):
-            return message.author == author
-        await author.send("What class would you like to purge?")
-        className = await bot.wait_for('message', check=check)
-        className = className.content
-        classDBName = ''.join(className.upper().split())
-
-        await author.send(f"Are you sure you want to purge {classDBName}? (y/n)")
-        confirmation = await bot.wait_for('message', check=check)
-        confirmation = confirmation.content.strip().upper()
-
-        if confirmation == "Y":
-            try:
-                self.query(f"DELETE\
-                             FROM Assignments\
-                             WHERE ClassName = '{classDBName}';")
-                self.query(f"DELETE\
-                             FROM ClassGrades\
-                             WHERE ClassName = '{classDBName}';")
-                self.commit()
-            except:
-                await author.send(f"Sorry! No assignments of class {classDBName} exists in your database...")
-
-            try: 
-                self.query(f"DROP TABLE {self.name + classDBName};")
-                self.commit()
-            except:
-                await author.send(f"Sorry! No class {classDBName} exists in our database...")
-        
-        await author.send("All done... Thanks!")
 
     def _calculateAssignmentAverage(self, classDB, classDBName, assignmentType):
         tableName = self.name + classDBName
@@ -417,3 +446,7 @@ class StudentDB(db.Database):
                 break
 
         return gradeDict[cutOffIndex]
+
+    def _getGradeFromLetter(self, grade):
+        gradeDict = {'F': 0.00, 'D': 1.00, 'C': 2.00, 'C+': 2.33, 'B-': 2.67, 'B': 3.00, 'B+': 3.33, 'A-': 3.67, 'A': 4.00}
+        return gradeDict[grade]
