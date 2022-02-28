@@ -379,6 +379,7 @@ class StudentDB(db.Database):
                 totalPercentage += percentOfGrade / 100
 
         currentGrade = round(finalGrade / totalPercentage, 4)
+        print(currentGrade)
 
         currentGrade = self._getGradeFromPercent(classDB, classDBName, currentGrade)
 
