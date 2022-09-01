@@ -7,8 +7,8 @@
 - [x] Creates local database 
 - [x] Commands set up to create the necessary databases and calculate the values
 - [x] Interfaces with discord
-- [ ] Discord commands set up
-- [ ] Cross-platform hosting (currently only supports linux/mac file directories)
+- [x] Discord commands set up
+- [x] Cross-platform hosting (currently only supports linux/mac file directories)
 
 ## Usage
 
